@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.stargazer.slagcompat.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [ "ModularItemRendererMixin" ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
