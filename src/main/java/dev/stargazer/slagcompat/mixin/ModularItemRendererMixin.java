@@ -23,8 +23,12 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -39,6 +43,10 @@ import static dev.lopyluna.slag.content.items.modular.ModularItemRenderer.render
 public class ModularItemRendererMixin {
 
 
+    /**
+     * @author Stargazer
+     * @reason Functionally does the same thing as previous code, however now supports data
+     */
     @Overwrite @SubscribeEvent
     public static void registerAdditionalModels(ModelEvent.RegisterAdditional e) {
         e.register(ModelResourceLocation.standalone(SlagEmbers.loc("item/modular_item_blueprint")));
@@ -50,9 +58,7 @@ public class ModularItemRendererMixin {
         var toolPath = SlagEmbers.loc("slag", "tool").getPath();
         var toolResources = Minecraft.getInstance().getResourceManager().listResources(toolPath, file -> true);
 
-        for (Map.Entry<ResourceLocation, Resource> entry : toolResources.entrySet()) {
-            ResourceLocation loc = entry.getKey();
-            Resource resource = entry.getValue();
+        for (Resource resource : toolResources.values()) {
             try (var reader = resource.openAsReader()) {
                 var toolObj = JsonParser.parseReader(reader).getAsJsonObject();
                 var toolName = toolObj.get("name").getAsString();
@@ -73,75 +79,22 @@ public class ModularItemRendererMixin {
 
     public final Minecraft mc = Minecraft.getInstance();
 
-    @Overwrite
-    protected void render(ItemStack stack, ItemRenderer itemRenderer, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
-                        ItemDisplayContext ctx, PoseStack ms, MultiBufferSource buf, int light, int overlay) {
-        var level = mc.level;
-        var player = mc.player;
-        if (level == null || player == null) return;
-        var item = stack.getItem();
-
-        if (!(item instanceof IModularItem tool)) {
-            renderer.render(model.getOriginalModel(), light);
-            return;
-        }
-        var shaper = itemRenderer.getItemModelShaper();
-        var manager = shaper.getModelManager();
-
-        var baked = stack.has(AllDataComponents.MODULAR_TYPE);
-        var bakedLoc = stack.get(AllDataComponents.MODULAR_TYPE);
-        var modularType = AllDynamicTypes.getModular(bakedLoc).orElse(null);
-        var bakedPath = bakedLoc != null ? bakedLoc.getPath() : "";
-        var suffix = modularType != null && !modularType.modelType.isEmpty() ? "_" + modularType.modelType : "";
-
-        var baseModel = getModel(stack, level, player, SlagEmbers.loc(baked ? "item/modular_item_baked" + suffix : "item/modular_item_blueprint"), manager);
-
-        var nudge = ctx == ItemDisplayContext.GROUND || ctx == ItemDisplayContext.FIXED ? 0.01f : 0.001f;
-        int i = 1;
-
-        var dynamicParts = tool.getParts(stack);
-
-        var totalItems = !baked ? dynamicParts == null || dynamicParts.isEmpty() ? 0 : dynamicParts.size() : -1;
-        var currentIndex = 0;
-        var random = !baked ? new Random(totalItems * 100L + (0 >= totalItems ? 0 : dynamicParts.hashCode())) : null;
-        var randomRot = !baked ? random.nextFloat() * 360 : -1;
-        var randomSpeedMod = !baked ? (3.25f + (random.nextFloat() * 1.25f)) * (random.nextBoolean() ? 1 : -1) : -1;
-
-        var fireImmune = stack.has(DataComponents.FIRE_RESISTANT);
-        var left = player.getMainArm() == HumanoidArm.LEFT && (ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || ctx == ItemDisplayContext.THIRD_PERSON_LEFT_HAND);
-
-        ms.pushPose();
-        baseModel.applyTransform(ctx, ms, left);
-        if (!baked) renderer.render(baseModel, light);
-        if (dynamicParts != null && !dynamicParts.isEmpty()) for (var part : dynamicParts.itemCopyRandom(random)) {
-            if (part.isEmpty()) continue;
-            ms.pushPose();
-            ms.scale(1 + (i * nudge), 1 + (i * nudge), 1 + (i * (nudge * 2f)));
-
-            if (baked) renderBakedPart(level, player, part, light, (fireImmune ? "_fire_proof_" : "_") + bakedPath, itemRenderer, renderer, manager);
-            else renderNonBakedPart(level, player, part, light, totalItems, currentIndex, randomRot, randomSpeedMod, ms, itemRenderer, renderer, manager);
-            ms.popPose();
-            i++;
-            currentIndex++;
-        }
-        else {
-            for (String partID : SlagCompat.ToolFallbacks.get(bakedPath)) {
-                var target = "item/modular/" + bakedPath + "/stone/" + partID;
+    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;popPose()V", ordinal = 2))
+    protected void render(ItemStack stack, ItemRenderer itemRenderer, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ItemDisplayContext ctx, PoseStack ms, MultiBufferSource buf, int light, int overlay, CallbackInfo ci) {
+        var toolItem = (IModularItem)stack.getItem();
+        var modelManager = itemRenderer.getItemModelShaper().getModelManager();
+        var toolLoc = stack.get(AllDataComponents.MODULAR_TYPE);
+        var toolBaked = toolLoc != null ? toolLoc.getPath() : "";
+        var dynamicPartsFallback = toolItem.getParts(stack);
+        var statement = dynamicPartsFallback != null && !dynamicPartsFallback.isEmpty();
+        if (!statement && !toolBaked.isEmpty()) {
+            for (String partID : SlagCompat.ToolFallbacks.get(toolBaked)) {
+                var target = "item/modular/" + toolBaked + "/stone/" + partID;
                 var modelLoc = ModelResourceLocation.standalone(SlagEmbers.loc(target));
-                renderer.render(manager.getModel(modelLoc), light);
+                renderer.render(modelManager.getModel(modelLoc), light);
             }
-            var handle = ModelResourceLocation.standalone(SlagEmbers.loc("item/handle_" + bakedPath));
-            renderer.render(manager.getModel(handle), light);
+            var handle = ModelResourceLocation.standalone(SlagEmbers.loc("item/handle_" + toolBaked));
+            renderer.render(modelManager.getModel(handle), light);
         }
-
-        if (ctx != ItemDisplayContext.HEAD && stack.has(DataComponents.TRIM) && suffix.equals("_equipable")) {
-            ms.pushPose();
-            var bakedModel = getModel(stack, level, player, SlagEmbers.loc("item/modular_item_baked_trim"), manager);
-            renderer.render(bakedModel, light);
-            ms.scale(1 + (i * nudge), 1 + (i * nudge), 1 + (i * (nudge * 2f)));
-            renderer.render(bakedModel, light);
-            ms.popPose();
-        }
-        ms.popPose();
     }
 }
