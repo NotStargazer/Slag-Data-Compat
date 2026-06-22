@@ -1,0 +1,7 @@
+{
+  "name": "sword",
+  "components": [
+    "sword_blade",
+    "guard"
+  ]
+}

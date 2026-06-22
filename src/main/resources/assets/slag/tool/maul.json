@@ -1,0 +1,8 @@
+{
+  "name": "maul",
+  "components": [
+    "pickaxe_head",
+    "axe_head",
+    "sword_blade"
+  ]
+}

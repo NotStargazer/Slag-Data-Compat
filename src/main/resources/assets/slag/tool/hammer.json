@@ -1,0 +1,8 @@
+{
+  "name": "hammer",
+  "components": [
+    "shovel_head",
+    "pickaxe_head",
+    "axe_head"
+  ]
+}

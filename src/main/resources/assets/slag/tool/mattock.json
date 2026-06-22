@@ -1,0 +1,7 @@
+{
+  "name": "mattock",
+  "components": [
+    "hoe_head",
+    "axe_head"
+  ]
+}

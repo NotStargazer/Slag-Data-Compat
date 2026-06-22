@@ -1,0 +1,8 @@
+{
+  "name": "scythe",
+  "components": [
+    "hoe_Head",
+    "sword_blade",
+    "guard"
+  ]
+}

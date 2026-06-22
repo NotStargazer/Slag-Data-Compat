@@ -1,0 +1,7 @@
+{
+  "name": "graip",
+  "components": [
+    "shovel_head",
+    "hoe_head"
+  ]
+}

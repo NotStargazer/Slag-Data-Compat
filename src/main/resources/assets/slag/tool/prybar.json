@@ -1,0 +1,7 @@
+{
+  "name": "prybar",
+  "components": [
+    "shovel_head",
+    "pickaxe_head"
+  ]
+}

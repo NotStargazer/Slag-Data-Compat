@@ -1,0 +1,6 @@
+{
+  "name": "pickaxe",
+  "components": [
+    "pickaxe_head"
+  ]
+}

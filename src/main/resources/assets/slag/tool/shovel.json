@@ -1,0 +1,6 @@
+{
+  "name": "shovel",
+  "components": [
+    "shovel_head"
+  ]
+}

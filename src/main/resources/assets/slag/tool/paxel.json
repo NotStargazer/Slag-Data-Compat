@@ -1,0 +1,10 @@
+{
+  "name": "paxel",
+  "components": [
+    "shovel_head",
+    "pickaxe_head",
+    "hoe_Head",
+    "axe_head",
+    "sword_blade"
+  ]
+}
